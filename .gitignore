@@ -1,0 +1,17 @@
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Backups
+*.backup
+
+# Generated local data
+chroma/
+data/chroma_db/
+data/sql_interactions.jsonl
+data/sql_evaluation_results.jsonl

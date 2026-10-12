@@ -1,0 +1,14 @@
+
+streamlit
+python-dotenv
+sqlalchemy
+pymysql
+langchain
+langchain-community
+langchain-experimental
+langchain-text-splitters
+langchain-core
+langchain-groq
+langchain-chroma
+chromadb
+sentence-transformers
