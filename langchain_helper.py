@@ -1,5 +1,5 @@
-
 import os
+import streamlit as st
 import re
 from pathlib import Path
 from functools import lru_cache
@@ -72,7 +72,14 @@ class SafeSQLDatabase(SQLDatabase):
 def get_few_shot_db_chain():
     """Create the TechyAgent SQL assistant using bundled SQLite."""
 
-    if not os.getenv("GROQ_API_KEY"):
+    # Load the API key from Streamlit secrets (deployment) or environment (.env).
+    GROQ_API_KEY = (
+        st.secrets.get("GROQ_API_KEY")
+        if hasattr(st, "secrets")
+        else None
+    ) or os.getenv("GROQ_API_KEY")
+
+    if not GROQ_API_KEY:
         raise ValueError(
             "Missing GROQ_API_KEY. Configure it in your .env file "
             "or deployment secrets."
@@ -100,7 +107,7 @@ def get_few_shot_db_chain():
     # Configure the Groq model.
     llm = ChatGroq(
         model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
-        api_key=os.getenv("GROQ_API_KEY"),
+        api_key=GROQ_API_KEY,
         temperature=0,
     )
 
