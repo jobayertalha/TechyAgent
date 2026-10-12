@@ -2,7 +2,6 @@
 streamlit
 python-dotenv
 sqlalchemy
-pymysql
 langchain
 langchain-community
 langchain-experimental

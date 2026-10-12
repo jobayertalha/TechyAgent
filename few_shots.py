@@ -29,8 +29,8 @@ few_shots = [
             FROM subscriptions
             WHERE subscription_status = 'Active'
         """,
-        "SQLResult": "Example result: 5000.00",
-        "Answer": "The total monthly revenue from active subscriptions is 5000.00."
+        "SQLResult": "Example result: 9360.00",
+        "Answer": "The total monthly revenue from active subscriptions is 9360.00."
     },
     {
         "Question": "How many customers are in Bangladesh?",

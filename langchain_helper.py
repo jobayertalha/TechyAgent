@@ -1,11 +1,10 @@
 
 import os
 import re
-
-from dotenv import load_dotenv
-from sqlalchemy.engine import URL
+from pathlib import Path
 from functools import lru_cache
 
+from dotenv import load_dotenv
 from langchain_community.utilities import SQLDatabase
 from langchain_experimental.sql import SQLDatabaseChain
 from langchain_groq import ChatGroq
@@ -15,7 +14,6 @@ from langchain_chroma import Chroma
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 
 from few_shots import few_shots
-
 
 load_dotenv()
 
@@ -43,7 +41,7 @@ def clean_and_validate_sql(query: str) -> str:
     if not query:
         raise ValueError("The model returned an empty SQL query.")
 
-    # Only SELECT statements are allowed.
+    # Allow only a SELECT statement.
     if not re.match(r"^SELECT\b", query, flags=re.IGNORECASE):
         raise ValueError("Only SELECT queries are allowed.")
 
@@ -72,36 +70,25 @@ class SafeSQLDatabase(SQLDatabase):
 
 
 def get_few_shot_db_chain():
-    """Create the TechyAgent SQL assistant."""
+    """Create the TechyAgent SQL assistant using bundled SQLite."""
 
-    required = [
-        "GROQ_API_KEY",
-        "DB_USER",
-        "DB_PASSWORD",
-        "DB_HOST",
-        "DB_NAME",
-    ]
-
-    missing = [key for key in required if not os.getenv(key)]
-
-    if missing:
+    if not os.getenv("GROQ_API_KEY"):
         raise ValueError(
-            f"Missing environment variables: {', '.join(missing)}. "
-            "Check your .env file."
+            "Missing GROQ_API_KEY. Configure it in your .env file "
+            "or deployment secrets."
         )
 
-    # Connect to MySQL.
-    connection_url = URL.create(
-        drivername="mysql+pymysql",
-        username=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        host=os.getenv("DB_HOST"),
-        port=int(os.getenv("DB_PORT", "3306")),
-        database=os.getenv("DB_NAME"),
-    )
+    # Connect to the local SQLite database.
+    db_path = Path(__file__).resolve().parent / "data" / "techyagent.db"
+
+    if not db_path.exists():
+        raise FileNotFoundError(
+            f"SQLite database not found: {db_path}. "
+            "Create data/techyagent.db before starting the app."
+        )
 
     db = SafeSQLDatabase.from_uri(
-        connection_url,
+        f"sqlite:///{db_path.as_posix()}",
         include_tables=[
             "software_products",
             "customers",
@@ -110,11 +97,11 @@ def get_few_shot_db_chain():
         sample_rows_in_table_info=3,
     )
 
-    # Configure Gemini.
+    # Configure the Groq model.
     llm = ChatGroq(
-    model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
-    api_key=os.getenv("GROQ_API_KEY"),
-    temperature=0,
+        model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
+        api_key=os.getenv("GROQ_API_KEY"),
+        temperature=0,
     )
 
     # Create embeddings for selecting relevant SQL examples.
@@ -122,7 +109,7 @@ def get_few_shot_db_chain():
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    # Store the examples in Chroma.
+    # Store examples in Chroma.
     examples_text = [
         " ".join(str(value) for value in example.values())
         for example in few_shots
@@ -140,11 +127,11 @@ def get_few_shot_db_chain():
         k=2,
     )
 
-    # SQL generation instructions.
-    mysql_prompt = """
+    # SQLite-compatible SQL generation instructions.
+    sqlite_prompt = """
 You are TechyAgent, an assistant for an IT software company.
 
-Convert the user's question into one valid MySQL SELECT query.
+Convert the user's question into one valid SQLite SELECT query.
 
 Rules:
 - Use only software_products, customers, and subscriptions.
@@ -181,7 +168,7 @@ Return the SQL query only.
     few_shot_prompt = FewShotPromptTemplate(
         example_selector=example_selector,
         example_prompt=example_prompt,
-        prefix=mysql_prompt,
+        prefix=sqlite_prompt,
         suffix=(
             "\nDatabase schema:\n{table_info}"
             "\n\nQuestion: {input}"
@@ -191,7 +178,7 @@ Return the SQL query only.
         input_variables=["input", "table_info", "top_k"],
     )
 
-    # Build the chain.
+    # Build the SQL question-answering chain.
     return SQLDatabaseChain.from_llm(
         llm=llm,
         db=db,
@@ -199,14 +186,15 @@ Return the SQL query only.
         verbose=True,
         return_intermediate_steps=True,
         use_query_checker=False,
+        return_direct=True,
         top_k=10,
     )
 
 
-# Create the chain when this module is imported.
 @lru_cache(maxsize=1)
 def get_cached_chain():
     return get_few_shot_db_chain()
 
 
+# Create the chain when this module is imported.
 chain = get_cached_chain()
