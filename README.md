@@ -2,6 +2,12 @@
 
 TechyAgent is an AI-powered SQL assistant for a fictional IT software company. It lets users ask questions in natural language and explore database information through a Streamlit dashboard.
 
+## 🚀 Live Demo
+
+**[Try TechyAgent Live](https://techyagent-k5atxokhuvnteqnbhtggpd.streamlit.app/)**
+
+Explore the AI-powered IT support assistant featuring SQL-based analytics, an AI SQL assistant, Agentic RAG, and RAG evaluation.
+
 ## Features
 
 - **AI SQL Assistant:** Converts natural-language questions into MySQL queries.
